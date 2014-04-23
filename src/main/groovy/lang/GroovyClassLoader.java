@@ -194,6 +194,18 @@ public class GroovyClassLoader extends URLClassLoader {
      * @return the main class defined in the given script
      */
     public Class parseClass(final String text, final String fileName) throws CompilationFailedException {
+       return parseClass(text, fileName, true);
+    }
+
+    /**
+     * Parses the given text into a Java class capable of being run
+     *
+     * @param text     the text of the script/class to parse
+     * @param fileName the file name to use as the name of the class
+     * @param shouldCacheClass if true then the generated class will be stored in the class cache
+     * @return the main class defined in the given script
+     */
+    private Class parseClass(final String text, final String fileName, boolean shouldCacheClass) throws CompilationFailedException {
         GroovyCodeSource gcs = AccessController.doPrivileged(new PrivilegedAction<GroovyCodeSource>() {
             public GroovyCodeSource run() {
                 return new GroovyCodeSource(text, fileName, "/groovy/script");
@@ -211,7 +223,7 @@ public class GroovyClassLoader extends URLClassLoader {
      */
     public Class parseClass(String text) throws CompilationFailedException {
         return parseClass(text, "script" + System.currentTimeMillis() +
-                Math.abs(text.hashCode()) + ".groovy");
+                Math.abs(text.hashCode()) + ".groovy", false);
     }
 
     public synchronized String generateScriptName() {
@@ -250,19 +262,31 @@ public class GroovyClassLoader extends URLClassLoader {
      * for the given code source, then no parsing is done, instead the cached class is returned.
      *
      * @param shouldCacheSource if true then the generated class will be stored in the source cache
+     * @param shouldCacheClass if true then the generated class will be stored in the class cache
      * @return the main class defined in the given script
      */
     public Class parseClass(GroovyCodeSource codeSource, boolean shouldCacheSource) throws CompilationFailedException {
+        return parseClass(codeSource, shouldCacheSource, true);
+    }
+
+    /**
+     * Parses the given code source into a Java class. If there is a class file
+     * for the given code source, then no parsing is done, instead the cached class is returned.
+     *
+     * @param shouldCacheSource if true then the generated class will be stored in the source cache
+     * @return the main class defined in the given script
+     */
+    private Class parseClass(GroovyCodeSource codeSource, boolean shouldCacheSource, boolean shouldCacheClass) throws CompilationFailedException {
         synchronized (sourceCache) {
             Class answer = sourceCache.get(codeSource.getName());
             if (answer != null) return answer;
-            answer = doParseClass(codeSource);
+            answer = doParseClass(codeSource, shouldCacheClass);
             if (shouldCacheSource) sourceCache.put(codeSource.getName(), answer);
             return answer;
         }
     }
 
-    private Class doParseClass(GroovyCodeSource codeSource) {
+    private Class doParseClass(GroovyCodeSource codeSource, boolean shouldCacheClass) {
         validate(codeSource);
         Class answer;  // Was neither already loaded nor compiling, so compile and add to cache.
         CompilationUnit unit = createCompilationUnit(config, codeSource.getCodeSource());
@@ -293,7 +317,7 @@ public class GroovyClassLoader extends URLClassLoader {
             definePackage(clazzName);
             if (clazzName.equals(mainClass)) {
                 answer = clazz;
-                if(codeSource.isCachable()) setClassCacheEntry(clazz);
+                if(shouldCacheClass) setClassCacheEntry(clazz);
             }else{
                 setClassCacheEntry(clazz);
             }
