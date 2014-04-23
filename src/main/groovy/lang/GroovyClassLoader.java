@@ -291,8 +291,12 @@ public class GroovyClassLoader extends URLClassLoader {
             Class clazz = (Class) o;
             String clazzName = clazz.getName();
             definePackage(clazzName);
-            setClassCacheEntry(clazz);
-            if (clazzName.equals(mainClass)) answer = clazz;
+            if (clazzName.equals(mainClass)) {
+                answer = clazz;
+                if(codeSource.isCachable()) setClassCacheEntry(clazz);
+            }else{
+                setClassCacheEntry(clazz);
+            }
         }
         return answer;
     }
